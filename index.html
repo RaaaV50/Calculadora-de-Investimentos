@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora CDI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="imagens/investiment.jpg" type="image/x-icon">
+
+
+</head>
+
+<body>
+    <main id="main" class="container">
+        <header class="top">
+            <h1>Calculadora de Rendimento</h1>
+            <button id="themeToggle" class="theme-toggle" aria-label="Alternar tema">🌙</button>
+        </header>
+
+        <div class="investment-tabs" role="tablist" aria-label="Escolha investimento">
+
+            <button id="tab-cdi" class="tab-btn active" data-tab="cdi" role="tab" aria-controls="cdi-section"
+                aria-selected="true">CDI</button>
+            <button id="tab-fii" class="tab-btn" data-tab="fii" role="tab" aria-controls="fii-section"
+                aria-selected="false">Fundo Imobiliário</button>
+            <button id="tab-inversa" class="tab-btn" data-tab="inversa" role="tab" aria-controls="inversa-section"
+                aria-selected="false">Primeiro Milhão</button>
+            <button id="tab-objetivo" class="tab-btn" data-tab="objetivo" role="tab" aria-controls="objetivo-section"
+                aria-selected="false">Objetivo</button>
+        </div>
+
+               <!-- CDI -->
+
+        <section class="card" id="cdi-section" role="tabpanel" aria-labelledby="tab-cdi">
+            <form id="calcForm" class="form" role="form" aria-labelledby="tab-cdi">
+                <div class="field">
+                    <label for="valorInicial">Valor Inicial</label>
+                    <input type="number" id="valorInicial" step="0.01" placeholder="0,00">
+                </div>
+
+                <div class="field">
+                    <label for="percentualCDI">% do CDI</label>
+                    <input type="number" id="percentualCDI" step="0.01" placeholder="100" value="100">
+                </div>
+
+                <div class="field cdi-row">
+                    <label for="taxaCDI">Taxa CDI Atual (%)</label>
+                    <div class="cdi-input-wrap">
+                        <input type="text" id="taxaCDI" inputmode="decimal" placeholder="obtendo..." disabled
+                            aria-label="Taxa CDI atual">
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" id="refreshCdiBtn" class="icon-btn" title="Atualizar CDI"
+                                aria-label="Atualizar CDI">🔄</button>
+                            <button type="button" id="copyCdiBtn" class="icon-btn" title="Copiar CDI"
+                                aria-label="Copiar CDI">📋</button>
+                            <button type="button" id="clearCacheBtn" class="icon-btn" title="Limpar cache do CDI"
+                                aria-label="Limpar cache do CDI">🗑️</button>
+                        </div>
+                    </div>
+                    <div id="cdiInfo" class="cdi-info" aria-live="polite">—</div>
+                </div>
+
+                <div class="field">
+                    <label for="periodo">Período (meses)</label>
+                    <input type="number" id="periodo" placeholder="ex: 12">
+                </div>
+
+                <div class="field">
+                    <label for="Aportes">Aportes Mensais</label>
+                    <input type="number" id="Aportes" step="0.01" placeholder="0,00">
+                </div>
+
+                <div class="actions">
+                    <button type="button" id="calcularBtn" class="btn">Calcular</button>
+                </div>
+            </form>
+
+            <div class="results" aria-live="polite">
+                <div id="valoraplicado" class="result"></div>
+                <div id="montante" class="result"></div>
+                <div id="rendimento" class="result"></div>
+            </div>
+        </section>
+
+
+               <!-- OBJETIVO -->
+        <section class="card" id="objetivo-section" hidden role="tabpanel" aria-labelledby="tab-objetivo" tabindex="0">
+            <form id="calcObjetivoForm" class="form" role="form" aria-labelledby="tab-objetivo">
+        
+                <div class="field">
+                    <label for="valorInicialObjetivo">Investimento Inicial (opcional)</label>
+                    <input type="number" id="valorInicialObjetivo" step="0.01" placeholder="0,00">
+                </div>
+        
+                <div class="field">
+                    <label for="valorFinalDesejado">Valor Final Desejado (R$)</label>
+                    <input type="number" id="valorFinalDesejado" step="0.01" placeholder="1.000.000,00">
+                </div>
+        
+                <div class="field">
+                    <label for="percentualCDIObjetivo">% do CDI</label>
+                    <input type="number" id="percentualCDIObjetivo" step="0.01" placeholder="100" value="100">
+                </div>
+        
+                <div id="cdiInfoObjetivo" class="cdi-info" aria-live="polite">
+                    <div class="field cdi-row">
+
+                        <label for="taxaCDIInversa">Taxa CDI Atual (%)</label>
+                            <div class="cdi-input-wrap">
+                                <input type="text" id="taxaCDIInversa" inputmode="decimal" placeholder="obtendo..." disabled
+                                    aria-label="Taxa CDI atual">
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" id="refreshCdiInversaBtn" class="icon-btn" title="Atualizar CDI"
+                                        aria-label="Atualizar CDI">🔄</button>
+                                    <button type="button" id="copyCdiInversaBtn" class="icon-btn" title="Copiar CDI"
+                                        aria-label="Copiar CDI">📋</button>
+                                    <button type="button" id="clearCacheInversaBtn" class="icon-btn" title="Limpar cache do CDI"
+                                        aria-label="Limpar cache do CDI">🗑️</button>
+                                </div>
+                            </div>
+
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="periodoObjetivo">Prazo (meses)</label>
+                    <input type="number" id="periodoObjetivo" placeholder="ex: 60">
+                </div>
+
+                <div class="actions">
+                    <button type="button" id="calcularObjetivoBtn" class="btn">Calcular Aporte Mensal</button>
+                </div>
+            </form>
+        
+            <div class="results" aria-live="polite"></div>
+                <div id="aporteMensalNecessario" class="result"></div>
+                <div id="detalheObjetivo" class="result"></div>
+            </div>
+        </section>
+
+        <!-- FUNDO IMOBILIARIO -->
+
+        <section class="card" id="fii-section" hidden role="tabpanel" aria-labelledby="tab-fii" tabindex="0">
+            <form id="fiiForm" class="form" role="form" aria-labelledby="tab-fii">
+                <div class="field">
+                    <label for="cotaValor">Valor da Cota (R$)</label>
+                    <input type="number" id="cotaValor" step="0.01" placeholder="100,00">
+                </div>
+
+                <div class="field">
+                    <label for="rendimentoMensal">Rendimento Mensal por Cota (R$)</label>
+                    <input type="number" id="rendimentoMensal" step="0.01" placeholder="5,00">
+                </div>
+
+                <div class="field">
+                    <label for="cotasIniciais">Cotas Iniciais</label>
+                    <input type="number" id="cotasIniciais" step="1" placeholder="1" value="1">
+                </div>
+
+                <div class="field">
+                    <label for="cotasMensais">Cotas compradas por mês (extras)</label>
+                    <input type="number" id="cotasMensais" step="0.01" placeholder="0" value="0">
+                </div>
+
+                <div class="actions">
+                    <button type="button" id="calcularFiiBtn" class="btn">Calcular</button>
+                </div>
+            </form>
+
+            <div class="results" aria-live="polite">
+                <div id="tempoAtingimento" class="result"></div>
+                <div id="totalRecebido" class="result"></div>
+                <div id="cotaFinal" class="result"></div>
+                <div id="cotasNecessarias" class="result"></div>
+                <div id="totalAportes" class="result"></div>
+            </div>
+        </section>
+
+        <section class="card" id="inversa-section" hidden role="tabpanel" aria-labelledby="tab-inversa" tabindex="0">
+            <form id="calcInversaForm" class="form" role="form" aria-labelledby="tab-inversa">
+
+                <div class="field">
+                    <label for="valorInicialMilhao">Investimento Inicial</label>
+                    <input type="number" id="valorInicialMilhao" step="0.01" placeholder="0,00">
+                </div>
+
+                <div class="field">
+                    <label for="percentualCDIInversa">% do CDI</label>
+                    <input type="number" id="percentualCDIInversa" step="0.01" placeholder="100" value="100">
+                </div>
+
+                <div class="field">
+                    <label for="AportesInversa">Aportes Mensais</label>
+                    <input type="number" id="AportesInversa" step="0.01" placeholder="0,00">
+                </div>
+
+                <div class="actions">
+                    <button type="button" id="calcularInversaBtn" class="btn">Calcular Tempo</button>
+                </div>
+
+                <div class="results" aria-live="polite">
+                    <div id="tempoParaMilhao" class="result"></div>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+
+    <script src="js/script.js" defer></script>
+
+</body>
+
+</html>
