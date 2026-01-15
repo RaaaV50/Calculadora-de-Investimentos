@@ -105,7 +105,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const aplicado = (currentCdi * (pct / 100));
       cdiInfoEl.innerHTML = `<span class="ok">✅ CDI Base: ${currentCdi.toFixed(4)}% | Aplicando ${pct}% = ${aplicado.toFixed(4)}% (atualizado)</span>`;
 
-      // também sincroniza a seção 'Objetivo' se presente
       const taxaInversaInput = document.getElementById('taxaCDIInversa');
       const cdiInfoObjetivoEl = document.getElementById('cdiInfoObjetivo');
       if (taxaInversaInput) {
@@ -148,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       cdiInfoEl.innerHTML = `<span class="ok">✅ CDI Base: ${cdi.toFixed(4)}%</span>`;
     }
   }
-  // atualiza info da aba Objetivo quando % muda
+
   function updateObjetivoPercentualInfo() {
     const pctEl = document.getElementById('percentualCDIObjetivo');
     const pct = parseFloat(pctEl ? pctEl.value : '') || 0;
@@ -165,8 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (percentualEl) percentualEl.addEventListener('input', updatePercentualInfo);
   if (taxaInput) taxaInput.addEventListener('input', updatePercentualInfo);
-  // vincular para objetivo (se existir) — não redeclarar variável usada mais abaixo
-  const pctObjInput = document.getElementById('percentualCDIObjetivo');
+ const pctObjInput = document.getElementById('percentualCDIObjetivo');
   if (pctObjInput) pctObjInput.addEventListener('input', updateObjetivoPercentualInfo);
   const taxaCDIInversaEl = document.getElementById('taxaCDIInversa');
   if (taxaCDIInversaEl) taxaCDIInversaEl.addEventListener('input', updateObjetivoPercentualInfo);
@@ -481,7 +479,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
   });
-  // --- Objetivo: calcular aporte mensal necessário ---
   const valorInicialObjetivoEl = document.getElementById('valorInicialObjetivo');
   const valorFinalDesejadoEl = document.getElementById('valorFinalDesejado');
   const percentualCDIObjetivoEl = document.getElementById('percentualCDIObjetivo');
@@ -506,7 +503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cdiAnualPct = parseInputNumber(taxaCDIInversaEl ? taxaCDIInversaEl.value : taxaInput.value);
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
-    const r = taxaAnual / 12; // taxa mensal
+    const r = taxaAnual / 12; 
     const n = periodo;
 
     let aporte = 0;
@@ -532,13 +529,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     showResult(aporteMensalNecessarioEl, `Aporte mensal necessário: ${fmt.format(aporte)}`);
-    // mostrar CDI atual e CDI aplicado (anual) e taxa mensal
-    const cdiBasePct = cdiAnualPct || 0; // ex: 13.65
+   const cdiBasePct = cdiAnualPct || 0; 
     const cdiAplicadoPct = (cdiBasePct * (percentualCDI / 100));
     const taxaMensalPct = (r * 100).toFixed(4);
     showResult(detalheObjetivoEl, `CDI atual: ${cdiBasePct.toFixed(4)}% • Aplicando: ${cdiAplicadoPct.toFixed(4)}% • ${taxaMensalPct}% a.m. • Prazo: ${n} meses.`);
 
-    // pequeno efeito visual de celebração
     aporteMensalNecessarioEl.classList.add('celebrate');
     setTimeout(() => { aporteMensalNecessarioEl.classList.remove('celebrate'); }, 900);
   }
