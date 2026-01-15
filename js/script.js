@@ -1,4 +1,11 @@
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Função auxiliar para parsear números de inputs, substituindo vírgula por ponto
+function parseInputNumber(value) {
+  if (!value) return 0;
+  return parseFloat(String(value).replace(',', '.')) || 0;
+}
+
 async function buscarCDI() {
 
   const url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados/ultimos/1?formato=json";
@@ -80,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentCdi = cached.valor;
       taxaInput.value = currentCdi.toFixed(4);
       taxaInput.disabled = true;
-      const pct = parseFloat(percentualEl.value) || 0;
+      const pct = parseInputNumber(percentualEl.value);
       const aplicado = (currentCdi * (pct / 100));
       const age = formatAge(cached.ts);
       const stale = (Date.now() - cached.ts) > CDI_CACHE_TTL;
@@ -95,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       taxaInput.value = currentCdi.toFixed(4);
       taxaInput.disabled = true;
       saveCdiCache(res);
-      const pct = parseFloat(percentualEl.value) || 0;
+      const pct = parseInputNumber(percentualEl.value);
       const aplicado = (currentCdi * (pct / 100));
       cdiInfoEl.innerHTML = `<span class="ok">✅ CDI Base: ${currentCdi.toFixed(4)}% | Aplicando ${pct}% = ${aplicado.toFixed(4)}% (atualizado)</span>`;
 
@@ -108,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (cdiInfoObjetivoEl) {
         const pctObjEl = document.getElementById('percentualCDIObjetivo');
-        const pctObj = parseFloat(pctObjEl ? pctObjEl.value : '') || 0;
+        const pctObj = parseInputNumber(pctObjEl ? pctObjEl.value : '') || 0;
         const aplicadoObj = (currentCdi * (pctObj / 100));
         cdiInfoObjetivoEl.innerHTML = `<span class="ok">✅ CDI Base: ${currentCdi.toFixed(4)}% | Aplicando ${pctObj}% = ${aplicadoObj.toFixed(4)}%</span>`;
       }
@@ -133,8 +140,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   function updatePercentualInfo() {
-    const pct = parseFloat(percentualEl.value) || 0;
-    const cdi = parseFloat(String(taxaInput.value).replace(',', '.')) || 0;
+    const pct = parseInputNumber(percentualEl.value);
+    const cdi = parseInputNumber(taxaInput.value);
     if (cdi > 0 && pct > 0) {
       const aplicada = (cdi * (pct / 100));
       cdiInfoEl.innerHTML = `<span class="ok">✅ CDI Base: ${cdi.toFixed(4)}% | Aplicando ${pct}% = ${aplicada.toFixed(4)}%</span>`;
@@ -157,8 +164,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       cdiInfoObjetivoEl.innerHTML = `<span class="ok">✅ CDI Base: ${cdi.toFixed(4)}%</span>`;
     }
   }
-  percentualEl.addEventListener('input', updatePercentualInfo);
-  taxaInput.addEventListener('input', updatePercentualInfo);
+  if (percentualEl) percentualEl.addEventListener('input', updatePercentualInfo);
+  if (taxaInput) taxaInput.addEventListener('input', updatePercentualInfo);
   // vincular para objetivo (se existir) — não redeclarar variável usada mais abaixo
   const pctObjInput = document.getElementById('percentualCDIObjetivo');
   if (pctObjInput) pctObjInput.addEventListener('input', updateObjetivoPercentualInfo);
@@ -276,10 +283,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { el.classList.add('visible'); } catch (e) { }
   }
 
+  function clearResults(...els) {
+    els.forEach(el => {
+      if (!el) return;
+      el.textContent = '';
+      try { el.classList.remove('visible'); } catch (e) { }
+    });
+  }
+
   function calcularCDI() {
-    const valorInicial = parseFloat(valorInicialEl.value) || 0;
-    const aportes = parseFloat(aportesEl.value) || 0;
-    const percentualCDI = parseFloat(percentualEl.value) || 0;
+    const valorInicial = parseInputNumber(valorInicialEl.value);
+    const aportes = parseInputNumber(aportesEl.value);
+    const percentualCDI = parseInputNumber(percentualEl.value);
     const periodo = parseInt(periodoEl.value) || 0;
 
     if (isNaN(percentualCDI) || percentualCDI === 0 || isNaN(periodo) || periodo <= 0) {
@@ -287,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const cdiAnualPct = parseFloat(String(taxaInput.value).replace(',', '.')) || 0;
+    const cdiAnualPct = parseInputNumber(taxaInput.value);
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
     const r = taxaAnual / 12;
@@ -308,17 +323,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     showResult(rendimentoEl, `Rendimento total: ${fmt.format(rendimento)} (${efetivaAnualPct}% a.a.)`);
   }
 
-  calcularBtn.addEventListener('click', () => {
-    calcularBtn.disabled = true;
-    calcularBtn.style.transform = 'scale(.98)';
-    setTimeout(() => { calcularBtn.style.transform = ''; calcularBtn.disabled = false; }, 250);
-    calcularCDI();
-  });
+  if (calcularBtn) {
+    calcularBtn.addEventListener('click', () => {
+      calcularBtn.disabled = true;
+      calcularBtn.style.transform = 'scale(.98)';
+      setTimeout(() => { calcularBtn.style.transform = ''; calcularBtn.disabled = false; }, 250);
+      calcularCDI();
+    });
+  }
 
   [valorInicialEl, aportesEl, percentualEl, periodoEl].forEach(inp => {
-    inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); calcularBtn.click(); }
-    });
+    if (inp) {
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); calcularBtn && calcularBtn.click(); }
+      });
+    }
   });
   const calcularFiiBtn = document.getElementById('calcularFiiBtn');
   const cotaValorEl = document.getElementById('cotaValor');
@@ -334,10 +353,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const totalAportesEl = document.getElementById('totalAportes');
 
   function calcularFII() {
-    const cotaValor = parseFloat(cotaValorEl.value);
-    const rendimentoMensal = parseFloat(rendimentoMensalEl.value);
-    const cotasIniciais = parseFloat(cotasIniciaisEl.value) || 0;
-    const cotasMensais = parseFloat(cotasMensaisEl.value) || 0;
+    const cotaValor = parseInputNumber(cotaValorEl.value);
+    const rendimentoMensal = parseInputNumber(rendimentoMensalEl.value);
+    const cotasIniciais = parseInputNumber(cotasIniciaisEl.value);
+    const cotasMensais = parseInputNumber(cotasMensaisEl.value);
 
     if (isNaN(cotaValor) || cotaValor <= 0 || isNaN(rendimentoMensal) || rendimentoMensal <= 0 || cotasIniciais <= 0) {
       alert('Preencha todos os campos corretamente.');
@@ -375,17 +394,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     showResult(totalAportesEl, `Total aportado (R$): ${fmt.format(totalAportado.toFixed(2))}`);
   }
 
-  calcularFiiBtn.addEventListener('click', () => {
-    calcularFiiBtn.disabled = true;
-    calcularFiiBtn.style.transform = 'scale(.98)';
-    setTimeout(() => { calcularFiiBtn.style.transform = ''; calcularFiiBtn.disabled = false; }, 250);
-    calcularFII();
-  });
-
-  [cotaValorEl, rendimentoMensalEl].forEach(inp => {
-    inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); calcularFiiBtn.click(); }
+  if (calcularFiiBtn) {
+    calcularFiiBtn.addEventListener('click', () => {
+      calcularFiiBtn.disabled = true;
+      calcularFiiBtn.style.transform = 'scale(.98)';
+      setTimeout(() => { calcularFiiBtn.style.transform = ''; calcularFiiBtn.disabled = false; }, 250);
+      calcularFII();
     });
+  }
+
+  [cotaValorEl, rendimentoMensalEl, cotasIniciaisEl, cotasMensaisEl].forEach(inp => {
+    if (inp) {
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); calcularFiiBtn && calcularFiiBtn.click(); }
+      });
+    }
   });
   const calcularInversaBtn = document.getElementById('calcularInversaBtn');
   const valorInicialMilhaoEl = document.getElementById('valorInicialMilhao');
@@ -395,9 +418,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const MILHAO = 1000000;
 
   function calcularTempoParaMilhao() {
-    const valorInicial = parseFloat(valorInicialMilhaoEl.value) || 0;
-    const percentualCDI = parseFloat(percentualCDIInversaEl.value) || 0;
-    const aportes = parseFloat(aportesInversaEl.value) || 0;
+    const valorInicial = parseInputNumber(valorInicialMilhaoEl.value);
+    const percentualCDI = parseInputNumber(percentualCDIInversaEl.value);
+    const aportes = parseInputNumber(aportesInversaEl.value);
     const montanteDesejado = MILHAO;
 
     if (percentualCDI <= 0) {
@@ -405,7 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const cdiAnualPct = parseFloat(String(taxaInput.value).replace(',', '.')) || 0;
+    const cdiAnualPct = parseInputNumber(taxaInput.value);
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
     const r = taxaAnual / 12;
@@ -443,17 +466,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     showResult(tempoParaMilhaoEl, `Tempo estimado: ${meses} meses (${anos} anos)`);
   }
 
-  calcularInversaBtn.addEventListener('click', () => {
-    calcularInversaBtn.disabled = true;
-    calcularInversaBtn.style.transform = 'scale(.98)';
-    setTimeout(() => { calcularInversaBtn.style.transform = ''; calcularInversaBtn.disabled = false; }, 250);
-    calcularTempoParaMilhao();
-  });
+  if (calcularInversaBtn) {
+    calcularInversaBtn.addEventListener('click', () => {
+      calcularInversaBtn.disabled = true;
+      calcularInversaBtn.style.transform = 'scale(.98)';
+      setTimeout(() => { calcularInversaBtn.style.transform = ''; calcularInversaBtn.disabled = false; }, 250);
+      calcularTempoParaMilhao();
+    });
+  }
 
   [valorInicialMilhaoEl, percentualCDIInversaEl, aportesInversaEl].forEach(inp => {
-    inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); calcularInversaBtn.click(); }
-    });
+    if (inp) {
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); calcularInversaBtn && calcularInversaBtn.click(); }
+      });
+    }
   });
   // --- Objetivo: calcular aporte mensal necessário ---
   const valorInicialObjetivoEl = document.getElementById('valorInicialObjetivo');
@@ -465,9 +492,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const detalheObjetivoEl = document.getElementById('detalheObjetivo');
 
   function calcularObjetivo() {
-    const valorInicial = parseFloat(valorInicialObjetivoEl.value) || 0;
-    const valorFinal = parseFloat(valorFinalDesejadoEl.value) || 0;
-    const percentualCDI = parseFloat(percentualCDIObjetivoEl.value) || 0;
+    clearResults(aporteMensalNecessarioEl, detalheObjetivoEl);
+
+    const valorInicial = parseInputNumber(valorInicialObjetivoEl.value);
+    const valorFinal = parseInputNumber(valorFinalDesejadoEl.value);
+    const percentualCDI = parseInputNumber(percentualCDIObjetivoEl.value);
     const periodo = parseInt(periodoObjetivoEl.value) || 0;
 
     if (valorFinal <= 0 || periodo <= 0 || percentualCDI <= 0) {
@@ -475,7 +504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const cdiAnualPct = parseFloat(String(taxaInput.value).replace(',', '.')) || 0;
+    const cdiAnualPct = parseInputNumber(taxaCDIInversaEl ? taxaCDIInversaEl.value : taxaInput.value);
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
     const r = taxaAnual / 12; // taxa mensal
@@ -540,12 +569,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.classList.toggle('tab-btn--dark', theme !== 'light');
     });
     localStorage.setItem('theme', theme);
-    themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
-    if (themeToggle) themeToggle.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+    if (themeToggle) {
+      themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+      themeToggle.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+    }
   }
-  themeToggle.addEventListener('click', () => {
-    const cur = localStorage.getItem('theme') === 'light' ? 'dark' : 'light';
-    applyTheme(cur);
-  });
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const cur = localStorage.getItem('theme') === 'light' ? 'dark' : 'light';
+      applyTheme(cur);
+    });
+  }
   applyTheme(localStorage.getItem('theme') || 'dark');
 });
