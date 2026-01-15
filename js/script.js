@@ -1,6 +1,5 @@
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-// Função auxiliar para parsear números de inputs, substituindo vírgula por ponto
 function parseInputNumber(value) {
   if (!value) return 0;
   return parseFloat(String(value).replace(',', '.')) || 0;
