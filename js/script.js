@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (percentualEl) percentualEl.addEventListener('input', updatePercentualInfo);
   if (taxaInput) taxaInput.addEventListener('input', updatePercentualInfo);
- const pctObjInput = document.getElementById('percentualCDIObjetivo');
+  const pctObjInput = document.getElementById('percentualCDIObjetivo');
   if (pctObjInput) pctObjInput.addEventListener('input', updateObjetivoPercentualInfo);
   const taxaCDIInversaEl = document.getElementById('taxaCDIInversa');
   if (taxaCDIInversaEl) taxaCDIInversaEl.addEventListener('input', updateObjetivoPercentualInfo);
@@ -336,6 +336,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
   });
+
+  const salvarCdiBtn = document.getElementById('salvarCdiBtn');
+  if (salvarCdiBtn) {
+    salvarCdiBtn.addEventListener('click', () => {
+      if (!montanteEl.textContent) {
+        alert('Por favor, calcule primeiro.');
+        return;
+      }
+      const dados = extrairDadosFormulario('calcForm');
+      salvarSimulacao('CDI', dados, { montante: montanteEl.textContent });
+      alert('✅ Simulação salva com sucesso!');
+    });
+  }
+
   const calcularFiiBtn = document.getElementById('calcularFiiBtn');
   const cotaValorEl = document.getElementById('cotaValor');
   const rendimentoMensalEl = document.getElementById('rendimentoMensal');
@@ -407,6 +421,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
   });
+
+  const salvarFiiBtn = document.getElementById('salvarFiiBtn');
+  if (salvarFiiBtn) {
+    salvarFiiBtn.addEventListener('click', () => {
+      if (!tempoAtingimentoEl.textContent) {
+        alert('Por favor, calcule primeiro.');
+        return;
+      }
+      const dados = extrairDadosFormulario('fiiForm');
+      salvarSimulacao('Fundo Imobiliário', dados, { tempoAtingimento: tempoAtingimentoEl.textContent });
+      alert('✅ Simulação salva com sucesso!');
+    });
+  }
   const calcularInversaBtn = document.getElementById('calcularInversaBtn');
   const valorInicialMilhaoEl = document.getElementById('valorInicialMilhao');
   const percentualCDIInversaEl = document.getElementById('percentualCDIInversa');
@@ -479,6 +506,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
   });
+
+  const salvarInversaBtn = document.getElementById('salvarInversaBtn');
+  if (salvarInversaBtn) {
+    salvarInversaBtn.addEventListener('click', () => {
+      if (!tempoParaMilhaoEl.textContent) {
+        alert('Por favor, calcule primeiro.');
+        return;
+      }
+      const dados = extrairDadosFormulario('calcInversaForm');
+      salvarSimulacao('Primeiro Milhão', dados, { tempoParaMilhao: tempoParaMilhaoEl.textContent });
+      alert('✅ Simulação salva com sucesso!');
+    });
+  }
   const valorInicialObjetivoEl = document.getElementById('valorInicialObjetivo');
   const valorFinalDesejadoEl = document.getElementById('valorFinalDesejado');
   const percentualCDIObjetivoEl = document.getElementById('percentualCDIObjetivo');
@@ -503,7 +543,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cdiAnualPct = parseInputNumber(taxaCDIInversaEl ? taxaCDIInversaEl.value : taxaInput.value);
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
-    const r = taxaAnual / 12; 
+    const r = taxaAnual / 12;
     const n = periodo;
 
     let aporte = 0;
@@ -529,7 +569,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     showResult(aporteMensalNecessarioEl, `Aporte mensal necessário: ${fmt.format(aporte)}`);
-   const cdiBasePct = cdiAnualPct || 0; 
+    const cdiBasePct = cdiAnualPct || 0;
     const cdiAplicadoPct = (cdiBasePct * (percentualCDI / 100));
     const taxaMensalPct = (r * 100).toFixed(4);
     showResult(detalheObjetivoEl, `CDI atual: ${cdiBasePct.toFixed(4)}% • Aplicando: ${cdiAplicadoPct.toFixed(4)}% • ${taxaMensalPct}% a.m. • Prazo: ${n} meses.`);
@@ -553,6 +593,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.key === 'Enter') { e.preventDefault(); if (calcularObjetivoBtn) calcularObjetivoBtn.click(); }
     });
   });
+
+  const salvarObjetivoBtn = document.getElementById('salvarObjetivoBtn');
+  if (salvarObjetivoBtn) {
+    salvarObjetivoBtn.addEventListener('click', () => {
+      if (!aporteMensalNecessarioEl.textContent) {
+        alert('Por favor, calcule primeiro.');
+        return;
+      }
+      const dados = extrairDadosFormulario('calcObjetivoForm');
+      salvarSimulacao('Objetivo', dados, { aporteMensal: aporteMensalNecessarioEl.textContent });
+      alert('✅ Simulação salva com sucesso!');
+    });
+  }
   const themeToggle = document.getElementById('themeToggle');
   function applyTheme(theme) {
     if (theme === 'light') document.body.classList.add('light');
@@ -575,4 +628,172 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   applyTheme(localStorage.getItem('theme') || 'dark');
+
+
+
+
+  // SISTEMA DE HISTÓRICO (LocalStorage)
+
+  const HISTORICO_KEY = 'simulacoes_historico_v1';
+  const MAX_HISTORICO = 5;
+
+  function salvarSimulacao(abaNome, dados, resultado) {
+    try {
+      let historico = JSON.parse(localStorage.getItem(HISTORICO_KEY)) || [];
+
+      const novaSimulacao = {
+        id: Date.now(),
+        aba: abaNome,
+        timestamp: new Date().toLocaleString('pt-BR'),
+        dados: dados,
+        resultado: resultado
+      };
+
+      historico.unshift(novaSimulacao);
+      historico = historico.slice(0, MAX_HISTORICO);
+
+      localStorage.setItem(HISTORICO_KEY, JSON.stringify(historico));
+      atualizarListaHistorico();
+    } catch (e) {
+      console.warn('Erro ao salvar simulação:', e);
+    }
+  }
+
+  function carregarHistorico() {
+    try {
+      return JSON.parse(localStorage.getItem(HISTORICO_KEY)) || [];
+    } catch (e) {
+      console.warn('Erro ao carregar histórico:', e);
+      return [];
+    }
+  }
+
+  function atualizarListaHistorico() {
+    const historicoList = document.getElementById('historicoList');
+    const historico = carregarHistorico();
+
+    if (historico.length === 0) {
+      historicoList.innerHTML = '<p style="color: #aaa; text-align: center;">Nenhuma simulação salva</p>';
+      return;
+    }
+
+    historicoList.innerHTML = historico.map(sim => {
+      const tempoDecorrido = formatAge(sim.id);
+      const resultado = sim.resultado || {};
+
+      return `
+        <div class="historico-item" onclick="carregarSimulacao(${sim.id})">
+          <div class="historico-item-titulo">📊 ${sim.aba}</div>
+          <div class="historico-item-detalhes">
+            <span>${Object.keys(sim.dados).length} parâmetros</span>
+            <span>${sim.timestamp}</span>
+          </div>
+          <div class="historico-item-tempo">Salva ${tempoDecorrido}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  window.carregarSimulacao = function (id) {
+    const historico = carregarHistorico();
+    const simulacao = historico.find(s => s.id === id);
+
+    if (!simulacao) return;
+
+    const formularioId = getFormularioId(simulacao.aba);
+    if (!formularioId) return;
+
+    const formulario = document.getElementById(formularioId);
+    if (!formulario) return;
+
+    Object.keys(simulacao.dados).forEach(chave => {
+      const input = formulario.querySelector(`[id="${chave}"]`);
+      if (input) {
+        input.value = simulacao.dados[chave];
+      }
+    });
+
+    const modal = document.getElementById('historicoModal');
+    if (modal) modal.hidden = true;
+
+    alert(`Simulação "${simulacao.aba}" carregada! Clique em Calcular para ver os resultados.`);
+  };
+
+  function getFormularioId(abaNome) {
+    const mapping = {
+      'CDI': 'calcForm',
+      'Fundo Imobiliário': 'fiiForm',
+      'Objetivo': 'calcObjetivoForm',
+      'Primeiro Milhão': 'calcInversaForm',
+      'Juros Compostos': 'calcJurosCompostosForm',
+      'Simulador de Empréstimo': 'calcSimuladorEmprestimoForm'
+    };
+    return mapping[abaNome];
+  }
+
+  function getTabFromAba(abaNome) {
+    const mapping = {
+      'CDI': 'cdi',
+      'Fundo Imobiliário': 'fii',
+      'Objetivo': 'objetivo',
+      'Primeiro Milhão': 'inversa',
+      'Juros Compostos': 'juros-compostos',
+      'Simulador de Empréstimo': 'simulador-emprestimo'
+    };
+    return mapping[abaNome];
+  }
+
+  const historicoToggle = document.getElementById('historicToggle');
+  const historicoModal = document.getElementById('historicoModal');
+  const closeHistoricoBtn = document.getElementById('closeHistoricoBtn');
+  const limparHistoricoBtn = document.getElementById('limparHistoricoBtn');
+
+  if (historicoToggle && historicoModal) {
+    historicoToggle.addEventListener('click', () => {
+      historicoModal.hidden = !historicoModal.hidden;
+      if (!historicoModal.hidden) {
+        atualizarListaHistorico();
+      }
+    });
+  }
+
+  if (closeHistoricoBtn && historicoModal) {
+    closeHistoricoBtn.addEventListener('click', () => {
+      historicoModal.hidden = true;
+    });
+  }
+
+  if (limparHistoricoBtn) {
+    limparHistoricoBtn.addEventListener('click', () => {
+      if (confirm('Tem certeza que deseja limpar o histórico de simulações?')) {
+        localStorage.removeItem(HISTORICO_KEY);
+        atualizarListaHistorico();
+      }
+    });
+  }
+
+  if (historicoModal) {
+    historicoModal.addEventListener('click', (e) => {
+      if (e.target === historicoModal) {
+        historicoModal.hidden = true;
+      }
+    });
+  }
+
+  function extrairDadosFormulario(formularioId) {
+    const formulario = document.getElementById(formularioId);
+    if (!formulario) return {};
+
+    const dados = {};
+    const inputs = formulario.querySelectorAll('input, select');
+    inputs.forEach(input => {
+      if (input.id && input.value) {
+        dados[input.id] = input.value;
+      }
+    });
+    return dados;
+  }
+
+  window.salvarSimulacao = salvarSimulacao;
+  window.extrairDadosFormulario = extrairDadosFormulario;
 });
