@@ -1,4 +1,4 @@
-Seguem a baixo algumas captulas de telas referente, demonstrando como está o andamento do projeto!
+Seguem abaixo algumas captulas de telas referente, demonstrando como está o andamento do projeto!
 
 <img width="860" height="566" alt="Calc" src="https://github.com/user-attachments/assets/3dd0eca0-3f11-490e-a89f-7cc2bfd28301" />
 
