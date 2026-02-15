@@ -448,3 +448,45 @@ input:focus-visible,
 [hidden] {
   display: none !important;
 }
+
+/* Estilos do Gráfico */
+.chart-container {
+  margin-top: 32px;
+  padding: 24px;
+  background: rgba(87, 44, 82, 0.5);
+  border: 1px solid rgba(184, 78, 78, 0.3);
+  border-radius: 12px;
+  display: none;
+  align-self: auto;
+}
+
+.chart-container.visible {
+  display: block;
+  animation: fadeIn 0.3s ease-in-out;
+  
+}
+
+.chart-container h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+  color: #ffffff;
+  align-items: center;
+}
+
+.chart-container canvas {
+  max-height: 300px;
+  align-self: auto;
+  width: 100%;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

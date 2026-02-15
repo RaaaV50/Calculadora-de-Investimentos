@@ -288,6 +288,137 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  let chartInstance = null;
+
+  function gerarGraficoEvolutivo(valorInicial, aportes, taxaMensal, periodo) {
+    const labels = [];
+    const dataEvolutivo = [];
+    const dataAplicado = [];
+    
+    let saldoAtual = valorInicial;
+    let totalAplicado = valorInicial;
+    
+    for (let mes = 0; mes <= periodo; mes++) {
+      labels.push(`Mês ${mes}`);
+      dataEvolutivo.push(parseFloat(saldoAtual.toFixed(2)));
+      dataAplicado.push(parseFloat(totalAplicado.toFixed(2)));
+      
+      if (mes < periodo) {
+        // Calcula juros sobre o saldo atual
+        saldoAtual = saldoAtual * (1 + taxaMensal) + aportes;
+        totalAplicado += aportes;
+      }
+    }
+
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) chartContainer.classList.add('visible');
+
+    const ctx = document.getElementById('graficoEvolutivo');
+    if (!ctx) return;
+
+    // Destruir gráfico anterior se existir
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Saldo com Juros Compostos',
+            data: dataEvolutivo,
+            borderColor: '#b84e4e',
+            backgroundColor: 'rgba(184, 78, 78, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#b84e4e',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            tension: 0.3,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Total Investido',
+            data: dataAplicado,
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            fill: false,
+            pointRadius: 3,
+            pointBackgroundColor: 'rgba(255, 255, 255, 0.5)',
+            tension: 0.3,
+            yAxisID: 'y'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              color: '#ffffff',
+              font: {
+                size: 12,
+                weight: 'normal'
+              },
+              usePointStyle: true,
+              padding: 15
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            borderColor: '#b84e4e',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: true,
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + fmt.format(context.parsed.y);
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              callback: function(value) {
+                return fmt.format(value);
+              }
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)',
+              drawBorder: false
+            }
+          },
+          x: {
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.7)'
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.05)',
+              drawBorder: false
+            }
+          }
+        }
+      }
+    });
+  }
+
   function calcularCDI() {
     const valorInicial = parseInputNumber(valorInicialEl.value);
     const aportes = parseInputNumber(aportesEl.value);
@@ -318,6 +449,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     showResult(montanteEl, `Montante após ${periodo} meses: ${fmt.format(montante)}`);
     const efetivaAnualPct = (taxaAnual * 100).toFixed(3);
     showResult(rendimentoEl, `Rendimento total: ${fmt.format(rendimento)} (${efetivaAnualPct}% a.a.)`);
+
+    // Gerar gráfico
+    if (periodo > 0 && (valorInicial > 0 || aportes > 0)) {
+      gerarGraficoEvolutivo(valorInicial, aportes, r, periodo);
+    }
   }
 
   if (calcularBtn) {
