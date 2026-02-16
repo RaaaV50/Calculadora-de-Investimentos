@@ -273,6 +273,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const montanteEl = document.getElementById('montante');
   const aplicadoEl = document.getElementById('valoraplicado');
   const rendimentoEl = document.getElementById('rendimento');
+  const impostoTotalEl = document.getElementById('impostoTotal');
+  const rendimentoLiquidoEl = document.getElementById('rendimentoLiquido');
+  const montanteLiquidoEl = document.getElementById('montanteLiquido');
+
+  function impostoPorPrazo(meses) {
+    // Tabela regressiva comum de IR sobre rendimentos:
+    // <=6 meses: 22.5%, <=12 meses: 20%, <=24 meses: 17.5%, >24 meses: 15%
+    if (meses <= 6) return 22.5;
+    if (meses <= 12) return 20.0;
+    if (meses <= 24) return 17.5;
+    return 15.0;
+  }
 
   function showResult(el, text) {
     if (!el) return;
@@ -445,10 +457,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalAplicado = valorInicial + (aportes * periodo);
     const rendimento = montante - totalAplicado;
 
+    // Imposto sobre o rendimento (definido automaticamente pelo prazo)
+    const impostoPct = impostoPorPrazo(periodo);
+    const impostoTotal = rendimento > 0 ? (rendimento * (impostoPct / 100)) : 0;
+    const rendimentoLiquido = rendimento - impostoTotal;
+    const montanteLiquido = totalAplicado + rendimentoLiquido;
+
     showResult(aplicadoEl, `Valor total aplicado: ${fmt.format(totalAplicado)}`);
-    showResult(montanteEl, `Montante após ${periodo} meses: ${fmt.format(montante)}`);
+    showResult(montanteEl, `Montante bruto após ${periodo} meses: ${fmt.format(montante)}`);
     const efetivaAnualPct = (taxaAnual * 100).toFixed(3);
-    showResult(rendimentoEl, `Rendimento total: ${fmt.format(rendimento)} (${efetivaAnualPct}% a.a.)`);
+    showResult(rendimentoEl, `Rendimento bruto: ${fmt.format(rendimento)} (${efetivaAnualPct}% a.a.)`);
+    showResult(impostoTotalEl, `Imposto sobre rendimento: ${fmt.format(impostoTotal)} (${impostoPct.toFixed(2)}%)`);
+    showResult(rendimentoLiquidoEl, `Rendimento líquido: ${fmt.format(rendimentoLiquido)}`);
+    showResult(montanteLiquidoEl, `Montante líquido após impostos: ${fmt.format(montanteLiquido)}`);
 
     // Gerar gráfico
     if (periodo > 0 && (valorInicial > 0 || aportes > 0)) {
