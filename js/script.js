@@ -1,8 +1,15 @@
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function parseInputNumber(value) {
-  if (!value) return 0;
-  return parseFloat(String(value).replace(',', '.')) || 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value === null || value === undefined || value === '') return 0;
+
+  const text = String(value).trim().replace(/\s/g, '');
+  const normalized = text.includes(',')
+    ? text.replace(/\./g, '').replace(',', '.')
+    : text;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 async function buscarCDI() {
@@ -72,131 +79,164 @@ function formatAge(ts) {
   const days = Math.floor(hrs / 24);
   return `${days}d atrás`;
 }
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   const taxaInput = document.getElementById('taxaCDI');
   const percentualEl = document.getElementById('percentualCDI');
   const cdiInfoEl = document.getElementById('cdiInfo');
+  const taxaCDIInversaEl = document.getElementById('taxaCDIInversa');
+  const pctObjInput = document.getElementById('percentualCDIObjetivo');
+  const cdiInfoObjetivoEl = document.getElementById('cdiInfoObjetivo');
+  const toastEl = document.getElementById('toast');
 
   let currentCdi = null;
-  const refreshBtn = document.getElementById('refreshCdiBtn');
+  let toastTimer;
+  const cdiInputs = [taxaInput, taxaCDIInversaEl].filter(Boolean);
+  const refreshButtons = [
+    document.getElementById('refreshCdiBtn'),
+    document.getElementById('refreshCdiInversaBtn')
+  ].filter(Boolean);
+  const copyButtons = [
+    document.getElementById('copyCdiBtn'),
+    document.getElementById('copyCdiInversaBtn')
+  ].filter(Boolean);
+  const clearCacheButtons = [
+    document.getElementById('clearCacheBtn'),
+    document.getElementById('clearCacheInversaBtn')
+  ].filter(Boolean);
 
-  async function loadCDI() {
+  function notify(message, type = 'success') {
+    if (!toastEl) return;
+    window.clearTimeout(toastTimer);
+    toastEl.textContent = message;
+    toastEl.className = `toast show${type === 'error' ? ' error' : ''}`;
+    toastTimer = window.setTimeout(() => {
+      toastEl.className = 'toast';
+    }, 3200);
+  }
+
+  function setCdiValue(value, editable = false) {
+    currentCdi = Number(value);
+    cdiInputs.forEach(input => {
+      input.value = Number.isFinite(currentCdi) ? currentCdi.toFixed(4) : '';
+      input.disabled = !editable;
+    });
+  }
+
+  function renderCdiInfo(status = '') {
+    const cdi = parseInputNumber(taxaInput ? taxaInput.value : currentCdi);
+    const pct = parseInputNumber(percentualEl ? percentualEl.value : 0);
+    if (!cdiInfoEl) return;
+
+    if (cdi > 0 && pct > 0) {
+      const aplicado = cdi * (pct / 100);
+      cdiInfoEl.innerHTML = `<span class="ok">${status} CDI base: ${cdi.toFixed(4)}% · aplicando ${pct}% = ${aplicado.toFixed(4)}%</span>`;
+    } else if (status) {
+      cdiInfoEl.innerHTML = `<span class="warn">${status}</span>`;
+    } else {
+      cdiInfoEl.textContent = 'Informe o percentual para ver a taxa aplicada.';
+    }
+  }
+
+  function renderObjetivoInfo(status = '') {
+    if (!cdiInfoObjetivoEl) return;
+    const cdi = parseInputNumber(taxaCDIInversaEl ? taxaCDIInversaEl.value : currentCdi);
+    const pct = parseInputNumber(pctObjInput ? pctObjInput.value : 0);
+    if (cdi > 0 && pct > 0) {
+      const aplicado = cdi * (pct / 100);
+      cdiInfoObjetivoEl.innerHTML = `<span class="ok">${status} CDI base: ${cdi.toFixed(4)}% · aplicando ${pct}% = ${aplicado.toFixed(4)}%</span>`;
+    } else if (status) {
+      cdiInfoObjetivoEl.innerHTML = `<span class="warn">${status}</span>`;
+    } else {
+      cdiInfoObjetivoEl.textContent = 'Informe o percentual para ver a taxa aplicada.';
+    }
+  }
+
+  async function loadCDI({ force = false } = {}) {
     const cached = readCdiCache();
     if (cached) {
-      currentCdi = cached.valor;
-      taxaInput.value = currentCdi.toFixed(4);
-      taxaInput.disabled = true;
-      const pct = parseInputNumber(percentualEl.value);
-      const aplicado = (currentCdi * (pct / 100));
-      const age = formatAge(cached.ts);
+      setCdiValue(cached.valor);
+      renderCdiInfo(`Cache · atualizado ${formatAge(cached.ts)} ·`);
+      renderObjetivoInfo(`Cache · atualizado ${formatAge(cached.ts)} ·`);
       const stale = (Date.now() - cached.ts) > CDI_CACHE_TTL;
-      cdiInfoEl.innerHTML = `<span class="ok">🔒 Cache: ${currentCdi.toFixed(4)}% — atualizado ${age} ${stale ? '(desatualizado)' : ''} | Aplicando ${pct}% = ${aplicado.toFixed(4)}%</span>`;
+      if (!force && !stale) return cached;
     }
 
     try {
-      if (!cached) cdiInfoEl.innerHTML = '🔄 Obtendo CDI...';
-      if (refreshBtn) refreshBtn.disabled = true;
+      renderCdiInfo('Atualizando…');
+      renderObjetivoInfo('Atualizando…');
+      refreshButtons.forEach(button => { button.disabled = true; });
       const res = await buscarCDI();
-      currentCdi = res.valor;
-      taxaInput.value = currentCdi.toFixed(4);
-      taxaInput.disabled = true;
+      setCdiValue(res.valor);
       saveCdiCache(res);
-      const pct = parseInputNumber(percentualEl.value);
-      const aplicado = (currentCdi * (pct / 100));
-      cdiInfoEl.innerHTML = `<span class="ok">✅ CDI Base: ${currentCdi.toFixed(4)}% | Aplicando ${pct}% = ${aplicado.toFixed(4)}% (atualizado)</span>`;
-
-      const taxaInversaInput = document.getElementById('taxaCDIInversa');
-      const cdiInfoObjetivoEl = document.getElementById('cdiInfoObjetivo');
-      if (taxaInversaInput) {
-        taxaInversaInput.value = currentCdi.toFixed(4);
-        taxaInversaInput.disabled = true;
-      }
-      if (cdiInfoObjetivoEl) {
-        const pctObjEl = document.getElementById('percentualCDIObjetivo');
-        const pctObj = parseInputNumber(pctObjEl ? pctObjEl.value : '') || 0;
-        const aplicadoObj = (currentCdi * (pctObj / 100));
-        cdiInfoObjetivoEl.innerHTML = `<span class="ok">✅ CDI Base: ${currentCdi.toFixed(4)}% | Aplicando ${pctObj}% = ${aplicadoObj.toFixed(4)}%</span>`;
-      }
+      renderCdiInfo('Atualizado ·');
+      renderObjetivoInfo('Atualizado ·');
+      return res;
     } catch (err) {
       if (!cached) {
         currentCdi = null;
-        taxaInput.placeholder = 'Erro ao obter CDI — insira manualmente';
-        taxaInput.removeAttribute('disabled');
-        cdiInfoEl.innerHTML = `<span class="warn">Falha ao obter CDI: ${String(err.message).slice(0, 120)}</span>`;
+        cdiInputs.forEach(input => {
+          input.value = '';
+          input.placeholder = 'Insira manualmente';
+          input.disabled = false;
+        });
+        renderCdiInfo(`Não foi possível obter o CDI (${String(err.message).slice(0, 80)}).`);
+        renderObjetivoInfo('Informe a taxa CDI manualmente.');
       } else {
-        cdiInfoEl.innerHTML = cdiInfoEl.innerHTML + ` <span class="warn">(falha ao atualizar)</span>`;
+        renderCdiInfo(`Cache · atualização falhou · ${formatAge(cached.ts)} ·`);
+        renderObjetivoInfo(`Cache · atualização falhou · ${formatAge(cached.ts)} ·`);
       }
     } finally {
-      if (refreshBtn) refreshBtn.disabled = false;
+      refreshButtons.forEach(button => { button.disabled = false; });
     }
   }
 
-  await loadCDI();
-
-  if (refreshBtn) refreshBtn.addEventListener('click', async () => {
-    await loadCDI();
-  });
-
   function updatePercentualInfo() {
-    const pct = parseInputNumber(percentualEl.value);
-    const cdi = parseInputNumber(taxaInput.value);
-    if (cdi > 0 && pct > 0) {
-      const aplicada = (cdi * (pct / 100));
-      cdiInfoEl.innerHTML = `<span class="ok">✅ CDI Base: ${cdi.toFixed(4)}% | Aplicando ${pct}% = ${aplicada.toFixed(4)}%</span>`;
-    } else if (cdi > 0) {
-      cdiInfoEl.innerHTML = `<span class="ok">✅ CDI Base: ${cdi.toFixed(4)}%</span>`;
-    }
+    renderCdiInfo();
   }
 
   function updateObjetivoPercentualInfo() {
-    const pctEl = document.getElementById('percentualCDIObjetivo');
-    const pct = parseFloat(pctEl ? pctEl.value : '') || 0;
-    const taxaEl = document.getElementById('taxaCDIInversa');
-    const cdiInfoObjetivoEl = document.getElementById('cdiInfoObjetivo');
-    const cdiSource = (taxaEl && taxaEl.value) ? taxaEl.value : taxaInput.value;
-    const cdi = parseFloat(String(cdiSource).replace(',', '.')) || 0;
-    if (cdi > 0 && pct > 0 && cdiInfoObjetivoEl) {
-      const aplicada = (cdi * (pct / 100));
-      cdiInfoObjetivoEl.innerHTML = `<span class="ok">✅ CDI Base: ${cdi.toFixed(4)}% | Aplicando ${pct}% = ${aplicada.toFixed(4)}%</span>`;
-    } else if (cdi > 0 && cdiInfoObjetivoEl) {
-      cdiInfoObjetivoEl.innerHTML = `<span class="ok">✅ CDI Base: ${cdi.toFixed(4)}%</span>`;
-    }
+    renderObjetivoInfo();
   }
   if (percentualEl) percentualEl.addEventListener('input', updatePercentualInfo);
   if (taxaInput) taxaInput.addEventListener('input', updatePercentualInfo);
-  const pctObjInput = document.getElementById('percentualCDIObjetivo');
   if (pctObjInput) pctObjInput.addEventListener('input', updateObjetivoPercentualInfo);
-  const taxaCDIInversaEl = document.getElementById('taxaCDIInversa');
   if (taxaCDIInversaEl) taxaCDIInversaEl.addEventListener('input', updateObjetivoPercentualInfo);
 
-  const copyCdiBtn = document.getElementById('copyCdiBtn');
-  if (copyCdiBtn) {
-    copyCdiBtn.addEventListener('click', async () => {
+  copyButtons.forEach(copyButton => {
+    copyButton.addEventListener('click', async () => {
+      const input = copyButton.id === 'copyCdiInversaBtn' ? taxaCDIInversaEl : taxaInput;
       try {
-        await navigator.clipboard.writeText(String(taxaInput.value));
-        copyCdiBtn.textContent = '✅';
-        setTimeout(() => { copyCdiBtn.textContent = '📋'; }, 1000);
+        if (!input || !input.value) throw new Error('taxa indisponível');
+        await navigator.clipboard.writeText(String(input.value));
+        copyButton.textContent = '✅';
+        notify('Taxa CDI copiada.');
+        setTimeout(() => { copyButton.textContent = '📋'; }, 1000);
       } catch (e) {
-        console.warn('Não foi possível copiar CDI:', e);
+        notify('Não foi possível copiar a taxa CDI.', 'error');
       }
     });
-  }
+  });
 
-  const clearCacheBtn = document.getElementById('clearCacheBtn');
-  if (clearCacheBtn) {
-    clearCacheBtn.addEventListener('click', async () => {
+  refreshButtons.forEach(button => {
+    button.addEventListener('click', () => loadCDI({ force: true }));
+  });
+
+  clearCacheButtons.forEach(button => {
+    button.addEventListener('click', async () => {
       try {
         localStorage.removeItem(CDI_CACHE_KEY);
-        cdiInfoEl.innerHTML = `<span class="ok">Cache limpo. Atualizando...</span>`;
-        await loadCDI();
+        renderCdiInfo('Cache limpo ·');
+        renderObjetivoInfo('Cache limpo ·');
+        await loadCDI({ force: true });
       } catch (e) {
-        console.warn('Erro ao limpar cache:', e);
-        cdiInfoEl.innerHTML = `<span class="warn">Erro ao limpar cache</span>`;
+        notify('Erro ao atualizar o CDI.', 'error');
       }
     });
-  }
+  });
 
   updatePercentualInfo();
+  updateObjetivoPercentualInfo();
+  void loadCDI();
   const cdiSection = document.getElementById('cdi-section');
   const fiiSection = document.getElementById('fii-section');
   const inversaSection = document.getElementById('inversa-section');
@@ -286,6 +326,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     return 15.0;
   }
 
+  function calcularImpostoPorLotes(valorInicial, aportes, taxaMensal, periodo) {
+    let imposto = 0;
+    const aplicarImposto = (valorAplicado, mesesInvestidos) => {
+      const rendimento = valorAplicado * Math.pow(1 + taxaMensal, mesesInvestidos) - valorAplicado;
+      return rendimento > 0 ? rendimento * (impostoPorPrazo(mesesInvestidos) / 100) : 0;
+    };
+
+    imposto += aplicarImposto(valorInicial, periodo);
+    for (let mes = 1; mes <= periodo; mes++) {
+      // O aporte entra no fim do mês; por isso, o último aporte ainda não tem rendimento.
+      imposto += aplicarImposto(aportes, periodo - mes);
+    }
+    return imposto;
+  }
+
   function showResult(el, text) {
     if (!el) return;
     el.textContent = text;
@@ -303,6 +358,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   let chartInstance = null;
 
   function gerarGraficoEvolutivo(valorInicial, aportes, taxaMensal, periodo) {
+    if (typeof Chart === 'undefined') {
+      notify('O gráfico não está disponível no momento, mas o cálculo foi concluído.', 'error');
+      return;
+    }
+
     const labels = [];
     const dataEvolutivo = [];
     const dataAplicado = [];
@@ -328,6 +388,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ctx = document.getElementById('graficoEvolutivo');
     if (!ctx) return;
 
+    const css = getComputedStyle(document.body);
+    const textColor = css.getPropertyValue('--text').trim() || '#ffffff';
+    const mutedColor = css.getPropertyValue('--muted').trim() || '#a8b6c9';
+    const accentColor = css.getPropertyValue('--accent').trim() || '#8b5cf6';
+
     // Destruir gráfico anterior se existir
     if (chartInstance) {
       chartInstance.destroy();
@@ -341,14 +406,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           {
             label: 'Saldo com Juros Compostos',
             data: dataEvolutivo,
-            borderColor: '#b84e4e',
-            backgroundColor: 'rgba(184, 78, 78, 0.1)',
+            borderColor: accentColor,
+            backgroundColor: 'rgba(139, 92, 246, 0.12)',
             borderWidth: 2,
             fill: true,
             pointRadius: 4,
             pointHoverRadius: 6,
-            pointBackgroundColor: '#b84e4e',
-            pointBorderColor: '#ffffff',
+            pointBackgroundColor: accentColor,
+            pointBorderColor: textColor,
             pointBorderWidth: 2,
             tension: 0.3,
             yAxisID: 'y'
@@ -356,12 +421,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           {
             label: 'Total Investido',
             data: dataAplicado,
-            borderColor: 'rgba(255, 255, 255, 0.5)',
+            borderColor: mutedColor,
             borderWidth: 2,
             borderDash: [5, 5],
             fill: false,
             pointRadius: 3,
-            pointBackgroundColor: 'rgba(255, 255, 255, 0.5)',
+            pointBackgroundColor: mutedColor,
             tension: 0.3,
             yAxisID: 'y'
           }
@@ -378,7 +443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           legend: {
             display: true,
             labels: {
-              color: '#ffffff',
+              color: textColor,
               font: {
                 size: 12,
                 weight: 'normal'
@@ -391,7 +456,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
             titleColor: '#ffffff',
             bodyColor: '#ffffff',
-            borderColor: '#b84e4e',
+            borderColor: accentColor,
             borderWidth: 1,
             padding: 12,
             displayColors: true,
@@ -407,22 +472,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             type: 'linear',
             position: 'left',
             ticks: {
-              color: 'rgba(255, 255, 255, 0.7)',
+              color: mutedColor,
               callback: function(value) {
                 return fmt.format(value);
               }
             },
             grid: {
-              color: 'rgba(255, 255, 255, 0.1)',
+              color: 'rgba(148, 163, 184, 0.16)',
               drawBorder: false
             }
           },
           x: {
             ticks: {
-              color: 'rgba(255, 255, 255, 0.7)'
+              color: mutedColor
             },
             grid: {
-              color: 'rgba(255, 255, 255, 0.05)',
+              color: 'rgba(148, 163, 184, 0.1)',
               drawBorder: false
             }
           }
@@ -437,12 +502,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const percentualCDI = parseInputNumber(percentualEl.value);
     const periodo = parseInt(periodoEl.value) || 0;
 
-    if (isNaN(percentualCDI) || percentualCDI === 0 || isNaN(periodo) || periodo <= 0) {
-      alert('Preencha a taxa CDI e o período corretamente.');
+    const cdiAnualPct = parseInputNumber(taxaInput.value);
+
+    if (valorInicial < 0 || aportes < 0 || percentualCDI <= 0 || cdiAnualPct <= 0 || periodo <= 0 || (valorInicial === 0 && aportes === 0)) {
+      notify('Informe valores positivos para o investimento, a taxa CDI e o prazo.', 'error');
+      clearResults(aplicadoEl, montanteEl, rendimentoEl, impostoTotalEl, rendimentoLiquidoEl, montanteLiquidoEl);
       return;
     }
 
-    const cdiAnualPct = parseInputNumber(taxaInput.value);
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
     const r = taxaAnual / 12;
@@ -457,9 +524,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalAplicado = valorInicial + (aportes * periodo);
     const rendimento = montante - totalAplicado;
 
-    // Imposto sobre o rendimento (definido automaticamente pelo prazo)
+    // O IR é estimado por lote: o investimento inicial e cada aporte respeitam seu próprio prazo.
     const impostoPct = impostoPorPrazo(periodo);
-    const impostoTotal = rendimento > 0 ? (rendimento * (impostoPct / 100)) : 0;
+    const impostoTotal = calcularImpostoPorLotes(valorInicial, aportes, r, periodo);
     const rendimentoLiquido = rendimento - impostoTotal;
     const montanteLiquido = totalAplicado + rendimentoLiquido;
 
@@ -467,7 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showResult(montanteEl, `Montante bruto após ${periodo} meses: ${fmt.format(montante)}`);
     const efetivaAnualPct = (taxaAnual * 100).toFixed(3);
     showResult(rendimentoEl, `Rendimento bruto: ${fmt.format(rendimento)} (${efetivaAnualPct}% a.a.)`);
-    showResult(impostoTotalEl, `Imposto sobre rendimento: ${fmt.format(impostoTotal)} (${impostoPct.toFixed(2)}%)`);
+    showResult(impostoTotalEl, `IR estimado por prazo: ${fmt.format(impostoTotal)} (alíquota inicial de referência: ${impostoPct.toFixed(2)}%)`);
     showResult(rendimentoLiquidoEl, `Rendimento líquido: ${fmt.format(rendimentoLiquido)}`);
     showResult(montanteLiquidoEl, `Montante líquido após impostos: ${fmt.format(montanteLiquido)}`);
 
@@ -498,12 +565,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (salvarCdiBtn) {
     salvarCdiBtn.addEventListener('click', () => {
       if (!montanteEl.textContent) {
-        alert('Por favor, calcule primeiro.');
+        notify('Calcule uma simulação antes de salvar.', 'error');
         return;
       }
       const dados = extrairDadosFormulario('calcForm');
       salvarSimulacao('CDI', dados, { montante: montanteEl.textContent });
-      alert('✅ Simulação salva com sucesso!');
+      notify('Simulação CDI salva no histórico.');
     });
   }
 
@@ -526,19 +593,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cotasIniciais = parseInputNumber(cotasIniciaisEl.value);
     const cotasMensais = parseInputNumber(cotasMensaisEl.value);
 
-    if (isNaN(cotaValor) || cotaValor <= 0 || isNaN(rendimentoMensal) || rendimentoMensal <= 0 || cotasIniciais <= 0) {
-      alert('Preencha todos os campos corretamente.');
+    if (cotaValor <= 0 || rendimentoMensal <= 0 || cotasIniciais <= 0 || cotasMensais < 0) {
+      notify('Informe valores positivos para a cota, o rendimento e as cotas.', 'error');
       return;
     }
-
-    const cotasNecessariasTeoricas = Math.ceil(cotaValor / rendimentoMensal);
 
     let cotas = cotasIniciais;
     let meses = 0;
     let totalDividendoRecebido = 0;
     let totalAportado = cotasIniciais * cotaValor;
+    const limiteMeses = 10000;
 
-    while (cotas * rendimentoMensal < cotaValor && meses < 10000) {
+    while (cotas * rendimentoMensal < cotaValor && meses < limiteMeses) {
       meses++;
 
       const dividendos = cotas * rendimentoMensal;
@@ -553,13 +619,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    const atingiuObjetivo = cotas * rendimentoMensal >= cotaValor;
     const anos = (meses / 12).toFixed(1);
 
-    showResult(tempoAtingimentoEl, `Magic Number atingido em: ${meses} meses (${anos} anos)`);
-    showResult(cotasNecessariasEl, `Cotas necessárias: ${cotas.toFixed(2)}`);
-    showResult(cotaFinalEl, `Rendimento mensal final: ${fmt.format((cotas * rendimentoMensal).toFixed(2))}`);
-    showResult(totalRecebidoEl, `Total recebido em dividendos: ${fmt.format(totalDividendoRecebido.toFixed(2))}`);
-    showResult(totalAportesEl, `Total aportado (R$): ${fmt.format(totalAportado.toFixed(2))}`);
+    showResult(tempoAtingimentoEl, atingiuObjetivo
+      ? `Magic Number atingido em: ${meses} meses (${anos} anos)`
+      : `Não atingido em ${limiteMeses.toLocaleString('pt-BR')} meses. Aumente os aportes ou o número de cotas.`);
+    showResult(cotasNecessariasEl, `Cotas projetadas: ${cotas.toFixed(2)}`);
+    showResult(cotaFinalEl, `Rendimento mensal final: ${fmt.format(cotas * rendimentoMensal)}`);
+    showResult(totalRecebidoEl, `Total recebido em dividendos: ${fmt.format(totalDividendoRecebido)}`);
+    showResult(totalAportesEl, `Total aportado: ${fmt.format(totalAportado)}`);
   }
 
   if (calcularFiiBtn) {
@@ -583,12 +652,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (salvarFiiBtn) {
     salvarFiiBtn.addEventListener('click', () => {
       if (!tempoAtingimentoEl.textContent) {
-        alert('Por favor, calcule primeiro.');
+        notify('Calcule uma simulação antes de salvar.', 'error');
         return;
       }
       const dados = extrairDadosFormulario('fiiForm');
       salvarSimulacao('Fundo Imobiliário', dados, { tempoAtingimento: tempoAtingimentoEl.textContent });
-      alert('✅ Simulação salva com sucesso!');
+      notify('Simulação de FII salva no histórico.');
     });
   }
   const calcularInversaBtn = document.getElementById('calcularInversaBtn');
@@ -604,12 +673,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const aportes = parseInputNumber(aportesInversaEl.value);
     const montanteDesejado = MILHAO;
 
-    if (percentualCDI <= 0) {
-      alert('Preencha o % CDI corretamente.');
+    const cdiAnualPct = parseInputNumber(taxaInput.value);
+
+    if (valorInicial < 0 || aportes < 0 || percentualCDI <= 0 || cdiAnualPct <= 0 || (valorInicial === 0 && aportes === 0)) {
+      notify('Informe um capital inicial ou aporte mensal, além de uma taxa CDI válida.', 'error');
+      clearResults(tempoParaMilhaoEl);
       return;
     }
 
-    const cdiAnualPct = parseInputNumber(taxaInput.value);
+    if (valorInicial >= montanteDesejado) {
+      showResult(tempoParaMilhaoEl, 'Objetivo já alcançado!');
+      return;
+    }
+
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
     const r = taxaAnual / 12;
@@ -634,8 +710,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const A = montanteDesejado * r + aportes;
     const B = valorInicial * r + aportes;
 
-    if (A / B <= 1) {
-      showResult(tempoParaMilhaoEl, `Objetivo já alcançado ou Investimento Inicial é muito alto.`);
+    if (B <= 0 || A / B <= 1 || !Number.isFinite(A / B)) {
+      showResult(tempoParaMilhaoEl, 'Aumente o aporte mensal para viabilizar esta projeção.');
       return;
     }
 
@@ -668,12 +744,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (salvarInversaBtn) {
     salvarInversaBtn.addEventListener('click', () => {
       if (!tempoParaMilhaoEl.textContent) {
-        alert('Por favor, calcule primeiro.');
+        notify('Calcule uma simulação antes de salvar.', 'error');
         return;
       }
       const dados = extrairDadosFormulario('calcInversaForm');
       salvarSimulacao('Primeiro Milhão', dados, { tempoParaMilhao: tempoParaMilhaoEl.textContent });
-      alert('✅ Simulação salva com sucesso!');
+      notify('Simulação do primeiro milhão salva no histórico.');
     });
   }
   const valorInicialObjetivoEl = document.getElementById('valorInicialObjetivo');
@@ -692,12 +768,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const percentualCDI = parseInputNumber(percentualCDIObjetivoEl.value);
     const periodo = parseInt(periodoObjetivoEl.value) || 0;
 
-    if (valorFinal <= 0 || periodo <= 0 || percentualCDI <= 0) {
-      alert('Preencha o valor final, % do CDI e o prazo corretamente.');
+    const cdiAnualPct = parseInputNumber(taxaCDIInversaEl ? taxaCDIInversaEl.value : taxaInput.value);
+
+    if (valorInicial < 0 || valorFinal <= 0 || periodo <= 0 || percentualCDI <= 0 || cdiAnualPct <= 0) {
+      notify('Informe o investimento inicial, a meta, o % do CDI, a taxa e o prazo corretamente.', 'error');
       return;
     }
 
-    const cdiAnualPct = parseInputNumber(taxaCDIInversaEl ? taxaCDIInversaEl.value : taxaInput.value);
+    if (valorInicial >= valorFinal) {
+      showResult(aporteMensalNecessarioEl, 'Objetivo já alcançado com o investimento inicial.');
+      showResult(detalheObjetivoEl, `Valor inicial: ${fmt.format(valorInicial)} · Meta: ${fmt.format(valorFinal)}`);
+      return;
+    }
+
     const CDI_ANUAL = cdiAnualPct / 100;
     const taxaAnual = (percentualCDI / 100) * CDI_ANUAL;
     const r = taxaAnual / 12;
@@ -714,14 +797,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (!isFinite(aporte)) {
-      detalheObjetivoEl.textContent = 'Cálculo não convergiu. Verifique os valores.';
-      aporteMensalNecessarioEl.textContent = '';
+      clearResults(aporteMensalNecessarioEl, detalheObjetivoEl);
+      notify('O cálculo não convergiu. Verifique os valores informados.', 'error');
       return;
     }
 
     if (aporte <= 0) {
-      aporteMensalNecessarioEl.textContent = `Objetivo já alcançado com o investimento inicial.`;
-      detalheObjetivoEl.textContent = `Montante atual projetado: ${fmt.format(valorInicial * Math.pow(1 + r, n))}`;
+      showResult(aporteMensalNecessarioEl, 'Objetivo já alcançado com o investimento inicial.');
+      showResult(detalheObjetivoEl, `Montante projetado: ${fmt.format(valorInicial * Math.pow(1 + r, n))}`);
       return;
     }
 
@@ -755,12 +838,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (salvarObjetivoBtn) {
     salvarObjetivoBtn.addEventListener('click', () => {
       if (!aporteMensalNecessarioEl.textContent) {
-        alert('Por favor, calcule primeiro.');
+        notify('Calcule uma simulação antes de salvar.', 'error');
         return;
       }
       const dados = extrairDadosFormulario('calcObjetivoForm');
       salvarSimulacao('Objetivo', dados, { aporteMensal: aporteMensalNecessarioEl.textContent });
-      alert('✅ Simulação salva com sucesso!');
+      notify('Simulação de objetivo salva no histórico.');
     });
   }
   const themeToggle = document.getElementById('themeToggle');
@@ -774,7 +857,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     localStorage.setItem('theme', theme);
     if (themeToggle) {
-      themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+      const icon = themeToggle.querySelector('[aria-hidden="true"]');
+      if (icon) icon.textContent = theme === 'light' ? '🌙' : '☀️';
       themeToggle.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
     }
   }
@@ -796,7 +880,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function salvarSimulacao(abaNome, dados, resultado) {
     try {
-      let historico = JSON.parse(localStorage.getItem(HISTORICO_KEY)) || [];
+      let historico = carregarHistorico();
 
       const novaSimulacao = {
         id: Date.now(),
@@ -813,12 +897,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       atualizarListaHistorico();
     } catch (e) {
       console.warn('Erro ao salvar simulação:', e);
+      notify('Não foi possível salvar a simulação.', 'error');
     }
   }
 
   function carregarHistorico() {
     try {
-      return JSON.parse(localStorage.getItem(HISTORICO_KEY)) || [];
+      const parsed = JSON.parse(localStorage.getItem(HISTORICO_KEY));
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.warn('Erro ao carregar histórico:', e);
       return [];
@@ -830,30 +916,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     const historico = carregarHistorico();
 
     if (historico.length === 0) {
-      historicoList.innerHTML = '<p style="color: #aaa; text-align: center;">Nenhuma simulação salva</p>';
+      historicoList.replaceChildren();
+      const empty = document.createElement('p');
+      empty.className = 'historico-empty';
+      empty.textContent = 'Nenhuma simulação salva ainda.';
+      historicoList.appendChild(empty);
       return;
     }
 
-    historicoList.innerHTML = historico.map(sim => {
+    historicoList.replaceChildren();
+    historico.forEach(sim => {
       const tempoDecorrido = formatAge(sim.id);
-      const resultado = sim.resultado || {};
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'historico-item';
+      item.dataset.id = String(sim.id);
 
-      return `
-        <div class="historico-item" onclick="carregarSimulacao(${sim.id})">
-          <div class="historico-item-titulo">📊 ${sim.aba}</div>
-          <div class="historico-item-detalhes">
-            <span>${Object.keys(sim.dados).length} parâmetros</span>
-            <span>${sim.timestamp}</span>
-          </div>
-          <div class="historico-item-tempo">Salva ${tempoDecorrido}</div>
-        </div>
-      `;
-    }).join('');
+      const titulo = document.createElement('div');
+      titulo.className = 'historico-item-titulo';
+      titulo.textContent = `📊 ${sim.aba}`;
+
+      const detalhes = document.createElement('div');
+      detalhes.className = 'historico-item-detalhes';
+      const parametros = document.createElement('span');
+      parametros.textContent = `${Object.keys(sim.dados || {}).length} parâmetros`;
+      const timestamp = document.createElement('span');
+      timestamp.textContent = sim.timestamp || 'Data indisponível';
+      detalhes.append(parametros, timestamp);
+
+      const tempo = document.createElement('div');
+      tempo.className = 'historico-item-tempo';
+      tempo.textContent = `Salva ${tempoDecorrido}`;
+
+      item.append(titulo, detalhes, tempo);
+      item.addEventListener('click', () => window.carregarSimulacao(sim.id));
+      historicoList.appendChild(item);
+    });
   }
 
   window.carregarSimulacao = function (id) {
     const historico = carregarHistorico();
-    const simulacao = historico.find(s => s.id === id);
+    const simulacao = historico.find(s => String(s.id) === String(id));
 
     if (!simulacao) return;
 
@@ -863,17 +966,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const formulario = document.getElementById(formularioId);
     if (!formulario) return;
 
-    Object.keys(simulacao.dados).forEach(chave => {
+    Object.keys(simulacao.dados || {}).forEach(chave => {
       const input = formulario.querySelector(`[id="${chave}"]`);
       if (input) {
         input.value = simulacao.dados[chave];
       }
     });
 
-    const modal = document.getElementById('historicoModal');
-    if (modal) modal.hidden = true;
+    const targetTab = getTabFromAba(simulacao.aba);
+    const tab = document.querySelector(`.tab-btn[data-tab="${targetTab}"]`);
+    if (tab) activateTab(tab);
 
-    alert(`Simulação "${simulacao.aba}" carregada! Clique em Calcular para ver os resultados.`);
+    closeHistorico();
+
+    notify(`Simulação de ${simulacao.aba} carregada. Clique em Calcular para atualizar o resultado.`);
   };
 
   function getFormularioId(abaNome) {
@@ -904,19 +1010,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   const historicoModal = document.getElementById('historicoModal');
   const closeHistoricoBtn = document.getElementById('closeHistoricoBtn');
   const limparHistoricoBtn = document.getElementById('limparHistoricoBtn');
+  let previousFocus = null;
+
+  function closeHistorico() {
+    if (!historicoModal) return;
+    historicoModal.hidden = true;
+    document.body.style.overflow = '';
+    if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+  }
 
   if (historicoToggle && historicoModal) {
     historicoToggle.addEventListener('click', () => {
-      historicoModal.hidden = !historicoModal.hidden;
+      if (!historicoModal.hidden) {
+        closeHistorico();
+        return;
+      }
+      previousFocus = document.activeElement;
+      historicoModal.hidden = false;
+      document.body.style.overflow = 'hidden';
       if (!historicoModal.hidden) {
         atualizarListaHistorico();
+        closeHistoricoBtn && closeHistoricoBtn.focus();
       }
     });
   }
 
   if (closeHistoricoBtn && historicoModal) {
     closeHistoricoBtn.addEventListener('click', () => {
-      historicoModal.hidden = true;
+      closeHistorico();
     });
   }
 
@@ -925,6 +1046,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (confirm('Tem certeza que deseja limpar o histórico de simulações?')) {
         localStorage.removeItem(HISTORICO_KEY);
         atualizarListaHistorico();
+        notify('Histórico limpo.');
       }
     });
   }
@@ -932,10 +1054,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (historicoModal) {
     historicoModal.addEventListener('click', (e) => {
       if (e.target === historicoModal) {
-        historicoModal.hidden = true;
+        closeHistorico();
       }
     });
   }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && historicoModal && !historicoModal.hidden) closeHistorico();
+  });
 
   function extrairDadosFormulario(formularioId) {
     const formulario = document.getElementById(formularioId);

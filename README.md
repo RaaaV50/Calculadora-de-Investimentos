@@ -1,11 +1,34 @@
-Seguem abaixo algumas captulas de telas referente, demonstrando como está o andamento do projeto!
+# Calculadora de Investimentos
 
-<img width="860" height="566" alt="Calc" src="https://github.com/user-attachments/assets/3dd0eca0-3f11-490e-a89f-7cc2bfd28301" />
+Calculadora web, responsiva e sem backend para explorar cenários de investimento no CDI, fundos imobiliários e metas financeiras.
 
-<img width="851" height="562" alt="Calc  Light mode" src="https://github.com/user-attachments/assets/fb462444-ce7b-4094-8f13-00667cc2711a" />
+## O que ela faz
 
-<img width="873" height="576" alt="Historico Calc" src="https://github.com/user-attachments/assets/4a4ac0d0-8fa9-46ee-bfcf-3a2a74076f50" />
+- Projeta montante, rendimento bruto e líquido no CDI, com aportes mensais.
+- Estima o IR por lote, respeitando o prazo do investimento inicial e de cada aporte.
+- Mostra a evolução do saldo e do total investido em um gráfico interativo.
+- Simula o tempo para atingir o “Magic Number” de um fundo imobiliário.
+- Calcula o aporte mensal necessário para alcançar uma meta.
+- Estima o tempo necessário para chegar ao primeiro milhão.
+- Salva as últimas simulações no histórico local e oferece tema claro/escuro.
 
-<img width="332" height="593" alt="Calc  celular historico" src="https://github.com/user-attachments/assets/a4c647c5-5149-47a1-8061-462b13754acb" />
+## Como executar
 
-<img width="297" height="567" alt="Calc  celular" src="https://github.com/user-attachments/assets/89c8eb2e-212a-46f6-a22b-02a630c31f27" />
+É uma aplicação estática. Basta abrir `index.html` no navegador. Para uma experiência mais consistente com a API do CDI, também é possível servir a pasta com qualquer servidor local, por exemplo:
+
+```powershell
+python -m http.server 8000
+```
+
+Depois, acesse `http://localhost:8000`.
+
+## Tecnologias
+
+- HTML, CSS e JavaScript puro.
+- Chart.js via CDN para o gráfico.
+- API do Banco Central do Brasil para consultar o CDI, com cache local de 24 horas e possibilidade de preenchimento manual.
+- `localStorage` para tema e histórico.
+
+## Observação
+
+As projeções são estimativas matemáticas e não constituem recomendação de investimento. Rentabilidade, tributação e condições reais podem variar.

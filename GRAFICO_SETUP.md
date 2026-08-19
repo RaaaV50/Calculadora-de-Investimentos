@@ -1,46 +1,18 @@
-# 📊 Gráfico de Evolução dos Juros Compostos
+# Gráfico de evolução
 
-## O que foi adicionado?
+Na aba **CDI**, o botão **Calcular** gera um gráfico mês a mês com duas séries:
 
-Um **gráfico interativo** que mostra mês a mês a evolução do seu investimento com juros compostos.
+- **Saldo projetado:** evolução do investimento com juros compostos e aportes.
+- **Total investido:** soma do investimento inicial e dos aportes realizados.
 
-## Como usar?
+O gráfico é responsivo, exibe os valores em reais ao passar o mouse e acompanha automaticamente o tema claro ou escuro da aplicação.
 
-1. **Preencha os dados na aba CDI:**
-   - Valor Inicial
-   - % do CDI
-   - Período (em meses)
-   - Aportes Mensais (opcional)
+## Premissas
 
-2. **Clique em "Calcular"**
+- Os aportes entram no fim de cada mês.
+- A taxa mensal usada é uma aproximação da taxa anual do CDI dividida por 12.
+- O gráfico mostra valores brutos; o resultado líquido com IR aparece nos cards da simulação.
 
-3. **Veja o gráfico aparecer** logo abaixo dos resultados
+## Dependência
 
-## O que o gráfico mostra?
-
-O gráfico possui duas linhas:
-
-- **Linha vermelha (Saldo com Juros Compostos)**: Mostra como seu dinheiro cresce com os juros mês a mês
-- **Linha pontilhada branca (Total Investido)**: Mostra o valor total que você aplicou
-
-A diferença entre as duas linhas representa seus **rendimentos totais**.
-
-## Recursos interativos
-
-- **Hover**: Passe o mouse sobre os pontos para ver os valores exatos
-- **Zoom/Pan**: Se tiver muitos meses, você pode ampliar a área
-- **Responsivo**: O gráfico se adapta ao tamanho da tela
-
-## Exemplo
-
-Se você investir:
-- R$ 1.000,00 inicial
-- R$ 100,00 por mês
-- 100% do CDI (digamos 10% a.a.)
-- Por 24 meses
-
-Você verá exatamente como o seu dinheiro evolui a cada mês, incluindo como os juros se acumulam!
-
-## Tecnologia
-
-O gráfico usa a biblioteca **Chart.js**, uma das mais populares para visualização de dados em JavaScript.
+O gráfico usa o Chart.js carregado por CDN no `index.html`. Se a biblioteca não estiver disponível, os valores continuam sendo calculados e a aplicação informa que o gráfico não pôde ser exibido.
